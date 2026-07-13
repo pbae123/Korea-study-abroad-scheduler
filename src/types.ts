@@ -2,7 +2,7 @@ export type Day = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'
 
 export const ALL_DAYS: readonly Day[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-// All-or-nothing: a Class either has days + start + end, or no TimeBlock at all
+// Every Class has meeting days and one time block using the fixed class periods.
 export interface TimeBlock {
   days: Day[]
   start: string // "HH:MM" 24h clock time
@@ -11,7 +11,7 @@ export interface TimeBlock {
 
 export interface Class {
   id: string
-  name: string // the only required user-facing field
+  name: string
   courseCode?: string
   school?: string
   credits?: string
@@ -20,7 +20,7 @@ export interface Class {
   link?: string
   notes?: string
   tags: string[]
-  timeBlock?: TimeBlock
+  timeBlock: TimeBlock
 }
 
 // Placements are live references: a Schedule stores only Class ids (ADR-0001)

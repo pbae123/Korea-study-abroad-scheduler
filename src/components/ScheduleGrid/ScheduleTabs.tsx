@@ -7,6 +7,17 @@ interface ScheduleTabsProps {
   activeScheduleId: string
 }
 
+// Next free "Option N" number so closing tabs never produces duplicate names
+function nextOptionName(schedules: Schedule[]): string {
+  const usedNumbers = schedules
+    .map((s) => /^Option (\d+)$/.exec(s.name)?.[1])
+    .filter((n): n is string => n !== undefined)
+    .map(Number)
+  let next = 1
+  while (usedNumbers.includes(next)) next++
+  return `Option ${next}`
+}
+
 export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps) {
   const dispatch = useAppDispatch()
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -22,7 +33,7 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
   const addSchedule = () => {
     dispatch({
       type: 'ADD_SCHEDULE',
-      schedule: { id: crypto.randomUUID(), name: `Option ${schedules.length + 1}`, classIds: [] },
+      schedule: { id: crypto.randomUUID(), name: nextOptionName(schedules), classIds: [] },
     })
   }
 
@@ -42,7 +53,7 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
   }
 
   return (
-    <div className="flex items-center gap-1 border-b border-gray-200 px-3 pt-2">
+    <div className="flex items-end gap-1 border-b border-gray-300 bg-gray-100 px-3 pt-2">
       {schedules.map((schedule) => {
         const isActive = schedule.id === activeScheduleId
         return renamingId === schedule.id ? (
@@ -56,37 +67,52 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
               if (e.key === 'Enter') commitRename()
               if (e.key === 'Escape') setRenamingId(null)
             }}
-            className="w-28 rounded-t border border-b-0 border-gray-300 px-2 py-1 text-xs focus:outline-none"
+            className="-mb-px w-32 rounded-t-lg border border-b-0 border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none"
           />
         ) : (
-          <button
+          // Browser-style tab: outlined, rounded top, active tab merges into the
+          // white content area below (border-b hidden via -mb-px + white bg)
+          <div
             key={schedule.id}
-            type="button"
             onClick={() => dispatch({ type: 'SET_ACTIVE_SCHEDULE', scheduleId: schedule.id })}
             onDoubleClick={() => {
               setRenamingId(schedule.id)
               setRenameValue(schedule.name)
             }}
             title="Double-click to rename"
-            className={`rounded-t border border-b-0 px-3 py-1 text-xs ${
+            className={`-mb-px flex cursor-pointer select-none items-center gap-2 rounded-t-lg border px-3 py-1.5 text-xs ${
               isActive
-                ? 'border-gray-300 bg-white font-medium text-gray-900'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
+                ? 'border-gray-300 border-b-white bg-white font-medium text-gray-900'
+                : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
             }`}
           >
-            {schedule.name}
-          </button>
+            <span className="max-w-32 truncate">{schedule.name}</span>
+            {schedules.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  // Close this tab without also selecting it
+                  e.stopPropagation()
+                  dispatch({ type: 'DELETE_SCHEDULE', scheduleId: schedule.id })
+                }}
+                title={`Close ${schedule.name}`}
+                className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-300 hover:text-gray-800"
+              >
+                ×
+              </button>
+            )}
+          </div>
         )
       })}
       <button
         type="button"
         onClick={addSchedule}
         title="New schedule"
-        className="px-2 py-1 text-xs text-gray-400 hover:text-gray-800"
+        className="mb-1 flex h-6 w-6 items-center justify-center rounded-full text-sm text-gray-500 hover:bg-gray-200 hover:text-gray-900"
       >
         +
       </button>
-      <div className="ml-auto flex items-center gap-2 pb-1">
+      <div className="ml-auto pb-1.5">
         <button
           type="button"
           onClick={duplicateActive}
@@ -94,15 +120,6 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
         >
           duplicate
         </button>
-        {schedules.length > 1 && (
-          <button
-            type="button"
-            onClick={() => dispatch({ type: 'DELETE_SCHEDULE', scheduleId: activeScheduleId })}
-            className="text-xs text-gray-400 hover:text-red-600"
-          >
-            delete
-          </button>
-        )}
       </div>
     </div>
   )

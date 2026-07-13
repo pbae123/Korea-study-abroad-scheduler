@@ -15,8 +15,33 @@ interface ClassFormValues {
   notes: string
   tagsText: string
   days: Day[]
-  start: string
-  end: string
+  startPeriod: string
+  endPeriod: string
+}
+
+const CLASS_PERIODS = [
+  { number: '1', start: '09:00', end: '09:50' },
+  { number: '2', start: '10:00', end: '10:50' },
+  { number: '3', start: '11:00', end: '11:50' },
+  { number: '4', start: '12:00', end: '12:50' },
+  { number: '5', start: '13:00', end: '13:50' },
+  { number: '6', start: '14:00', end: '14:50' },
+  { number: '7', start: '15:00', end: '15:50' },
+  { number: '8', start: '16:00', end: '16:50' },
+  { number: '9', start: '17:00', end: '17:50' },
+  { number: '10', start: '18:00', end: '18:50' },
+] as const
+
+function periodForStart(time: string | undefined): string {
+  return CLASS_PERIODS.find((period) => period.start === time)?.number ?? ''
+}
+
+function periodForEnd(time: string | undefined): string {
+  return CLASS_PERIODS.find((period) => period.end === time)?.number ?? ''
+}
+
+function periodByNumber(number: string) {
+  return CLASS_PERIODS.find((period) => period.number === number)
 }
 
 interface ClassFormModalProps {
@@ -38,13 +63,14 @@ function toFormValues(cls: Class | null): ClassFormValues {
     notes: cls?.notes ?? '',
     tagsText: cls?.tags.join(', ') ?? '',
     days: cls?.timeBlock?.days ?? [],
-    start: cls?.timeBlock?.start ?? '',
-    end: cls?.timeBlock?.end ?? '',
+    startPeriod: periodForStart(cls?.timeBlock?.start),
+    endPeriod: periodForEnd(cls?.timeBlock?.end),
   }
 }
 
 function toClass(values: ClassFormValues): Omit<Class, 'id'> {
-  const hasTimeBlock = values.days.length > 0 && values.start !== '' && values.end !== ''
+  const startPeriod = periodByNumber(values.startPeriod)!
+  const endPeriod = periodByNumber(values.endPeriod)!
   const tags = [...new Set(values.tagsText.split(',').map((t) => t.trim()).filter(Boolean))]
   return {
     name: values.name.trim(),
@@ -56,9 +82,7 @@ function toClass(values: ClassFormValues): Omit<Class, 'id'> {
     link: values.link.trim() || undefined,
     notes: values.notes.trim() || undefined,
     tags,
-    timeBlock: hasTimeBlock
-      ? { days: values.days, start: values.start, end: values.end }
-      : undefined,
+    timeBlock: { days: values.days, start: startPeriod.start, end: endPeriod.end },
   }
 }
 
@@ -80,14 +104,7 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
     if (isOpen) reset(toFormValues(editingClass))
   }, [isOpen, editingClass, reset])
 
-  const days = watch('days')
-  const start = watch('start')
-  const end = watch('end')
-
-  // All-or-nothing rule: days, start, and end must all be set or all be empty
-  const timeFieldsFilled = [days.length > 0, start !== '', end !== ''].filter(Boolean).length
-  const isTimeBlockPartial = timeFieldsFilled > 0 && timeFieldsFilled < 3
-  const isTimeOrderInvalid = start !== '' && end !== '' && end <= start
+  const startPeriod = watch('startPeriod')
 
   const saveAndClose = handleSubmit((values) => {
     onSave(toClass(values))
@@ -98,8 +115,6 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
     onSave(toClass(values))
     reset(toFormValues(null))
   })
-
-  const isBlocked = isTimeBlockPartial || isTimeOrderInvalid
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -157,29 +172,65 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
 
             <fieldset className="rounded border border-gray-200 p-3">
               <legend className="px-1 text-xs font-medium text-gray-600">
-                Meeting time <span className="font-normal text-gray-400">(optional — leave empty for async)</span>
+                Meeting details *
               </legend>
+              <p className="mb-2 text-xs text-gray-500">Select at least one day and enter the first and last class period.</p>
+              <p className="mb-1 text-xs font-medium text-gray-600">Meeting days *</p>
               <div className="flex flex-wrap gap-2">
                 {ALL_DAYS.map((day) => (
                   <label key={day} className="flex items-center gap-1 text-xs text-gray-700">
-                    <input type="checkbox" value={day} {...register('days')} />
+                    <input
+                      type="checkbox"
+                      value={day}
+                      {...register('days', { validate: (value) => value.length > 0 || 'Select at least one meeting day.' })}
+                    />
                     {day}
                   </label>
                 ))}
               </div>
-              <div className="mt-2 flex items-center gap-2">
-                <input type="time" {...register('start')} className={inputClass} />
-                <span className="text-gray-400">–</span>
-                <input type="time" {...register('end')} className={inputClass} />
+              {errors.days && <p className="mt-1 text-xs text-red-600">{errors.days.message}</p>}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-0.5 block text-xs font-medium text-gray-600">First period *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    inputMode="numeric"
+                    placeholder="1–10"
+                    aria-describedby="period-reference"
+                    {...register('startPeriod', {
+                      required: 'Enter a first period from 1 to 10.',
+                      validate: (value) => Boolean(periodByNumber(value)) || 'Enter a number from 1 to 10.',
+                    })}
+                    className={inputClass}
+                  />
+                  {errors.startPeriod && <p className="mt-1 text-xs text-red-600">{errors.startPeriod.message}</p>}
+                </div>
+                <div>
+                  <label className="mb-0.5 block text-xs font-medium text-gray-600">Last period *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    inputMode="numeric"
+                    placeholder="1–10"
+                    aria-describedby="period-reference"
+                    {...register('endPeriod', {
+                      required: 'Enter a last period from 1 to 10.',
+                      validate: (value) => {
+                        if (!periodByNumber(value)) return 'Enter a number from 1 to 10.'
+                        return Number(value) >= Number(startPeriod) || 'Last period must be the same as or after the first period.'
+                      },
+                    })}
+                    className={inputClass}
+                  />
+                  {errors.endPeriod && <p className="mt-1 text-xs text-red-600">{errors.endPeriod.message}</p>}
+                </div>
               </div>
-              {isTimeBlockPartial && (
-                <p className="mt-1 text-xs text-red-600">
-                  Days, start, and end must all be filled in — or all left empty.
-                </p>
-              )}
-              {isTimeOrderInvalid && (
-                <p className="mt-1 text-xs text-red-600">End time must be after start time.</p>
-              )}
+              <p id="period-reference" className="mt-2 text-xs text-gray-500">
+                Periods: {CLASS_PERIODS.map((period) => `(${period.number}) ${period.start}–${period.end}`).join(' · ')}
+              </p>
             </fieldset>
 
             <div>
@@ -199,8 +250,7 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
                 <button
                   type="button"
                   onClick={saveAndAddAnother}
-                  disabled={isBlocked}
-                  className="rounded border border-gray-900 px-3 py-1.5 text-sm text-gray-900 hover:bg-gray-100 disabled:opacity-40"
+                  className="rounded border border-gray-900 px-3 py-1.5 text-sm text-gray-900 hover:bg-gray-100"
                 >
                   Save & add another
                 </button>
@@ -208,8 +258,7 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
               <button
                 type="button"
                 onClick={saveAndClose}
-                disabled={isBlocked}
-                className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700 disabled:opacity-40"
+                className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
               >
                 Save
               </button>

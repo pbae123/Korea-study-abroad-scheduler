@@ -12,7 +12,7 @@ export function createInitialState(): AppState {
   const scheduleId = crypto.randomUUID()
   return {
     classes: [],
-    schedules: [{ id: scheduleId, name: 'Option A', classIds: [] }],
+    schedules: [{ id: scheduleId, name: 'Option 1', classIds: [] }],
     activeScheduleId: scheduleId,
     gridAxis: DEFAULT_GRID_AXIS,
   }
