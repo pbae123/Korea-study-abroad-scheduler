@@ -1,6 +1,7 @@
 import type { Class, Day, GridAxis } from '../../types'
 import { ALL_DAYS } from '../../types'
-import { formatTimeRange, minutesToTime, timeToMinutes } from '../../utils/time'
+import { findConflictingClassIds, formatTimeRange, minutesToTime, timeToMinutes } from '../../utils/time'
+import { layoutDayBlocks } from '../../utils/layout'
 
 // Fixed v1 block fill; the Color field is deferred (CONTEXT.md "Color")
 const BLOCK_FILL = '#FFFCF0'
@@ -8,12 +9,11 @@ const PX_PER_MINUTE = 1
 
 interface GridCanvasProps {
   placedClasses: Class[]
-  conflictingIds: Set<string>
   gridAxis: GridAxis
   onRemoveClass: (classId: string) => void
 }
 
-export function GridCanvas({ placedClasses, conflictingIds, gridAxis, onRemoveClass }: GridCanvasProps) {
+export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanvasProps) {
   const { startMinutes, endMinutes, intervalMinutes } = gridAxis
   const canvasHeight = (endMinutes - startMinutes) * PX_PER_MINUTE
 
@@ -49,7 +49,13 @@ export function GridCanvas({ placedClasses, conflictingIds, gridAxis, onRemoveCl
           </div>
         </div>
 
-        {days.map((day) => (
+        {days.map((day) => {
+          const dayBlocks = blocksForDay(day)
+          // Conflicts and column layout are evaluated per day, so a class is
+          // only flagged (and shrunk) on days where the overlap actually occurs
+          const dayConflicts = findConflictingClassIds(dayBlocks)
+          const dayLayouts = layoutDayBlocks(dayBlocks)
+          return (
           <div key={day} className="min-w-0 flex-1 border-l border-gray-100">
             <div className="flex h-7 items-center justify-center text-xs font-medium text-gray-600">
               {day}
@@ -62,18 +68,26 @@ export function GridCanvas({ placedClasses, conflictingIds, gridAxis, onRemoveCl
                   style={{ top: (minutes - startMinutes) * PX_PER_MINUTE }}
                 />
               ))}
-              {blocksForDay(day).map((cls) => {
+              {dayBlocks.map((cls) => {
                 const block = cls.timeBlock!
                 const top = (timeToMinutes(block.start) - startMinutes) * PX_PER_MINUTE
                 const height = (timeToMinutes(block.end) - timeToMinutes(block.start)) * PX_PER_MINUTE
-                const isConflicting = conflictingIds.has(cls.id)
+                const isConflicting = dayConflicts.has(cls.id)
+                const layout = dayLayouts.get(cls.id) ?? { column: 0, columnCount: 1 }
+                const widthPercent = 100 / layout.columnCount
                 return (
                   <div
                     key={cls.id}
-                    className={`group absolute inset-x-0.5 overflow-hidden rounded border px-1.5 py-1 text-[11px] leading-tight ${
+                    className={`group absolute overflow-hidden rounded border px-1.5 py-1 text-[11px] leading-tight ${
                       isConflicting ? 'border-red-500 ring-1 ring-red-400' : 'border-gray-300'
                     }`}
-                    style={{ top, height, backgroundColor: BLOCK_FILL }}
+                    style={{
+                      top,
+                      height,
+                      backgroundColor: BLOCK_FILL,
+                      left: `${layout.column * widthPercent}%`,
+                      width: `calc(${widthPercent}% - 2px)`,
+                    }}
                     title={
                       isConflicting
                         ? `${cls.name} — conflicts with another class on this schedule`
@@ -97,7 +111,8 @@ export function GridCanvas({ placedClasses, conflictingIds, gridAxis, onRemoveCl
               })}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

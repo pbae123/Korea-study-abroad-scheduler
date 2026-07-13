@@ -31,6 +31,9 @@ export function ClassCard({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      // dnd-kit marks the disabled draggable aria-disabled, which screen
+      // readers extend to the card's still-functional buttons — strip it
+      aria-disabled={undefined}
       className={`group rounded-md border border-gray-200 bg-white p-3 shadow-sm transition-opacity ${
         isDragging ? 'opacity-40' : ''
       } ${isPlacedOnActiveSchedule ? '' : 'cursor-grab active:cursor-grabbing'}`}

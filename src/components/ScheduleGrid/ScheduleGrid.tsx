@@ -1,6 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
 import { useAppDispatch, useAppState } from '../../state/AppContext'
-import { findConflictingClassIds } from '../../utils/time'
 import { ScheduleTabs } from './ScheduleTabs'
 import { GridCanvas } from './GridCanvas'
 import { UnscheduledList } from './UnscheduledList'
@@ -20,7 +19,6 @@ export function ScheduleGrid() {
     .map((id) => classes.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => c !== undefined)
 
-  const conflictingIds = findConflictingClassIds(placedClasses)
   const unscheduled = placedClasses.filter((c) => !c.timeBlock)
 
   const removeClass = (classId: string) =>
@@ -34,12 +32,7 @@ export function ScheduleGrid() {
       }`}
     >
       <ScheduleTabs schedules={schedules} activeScheduleId={activeScheduleId} />
-      <GridCanvas
-        placedClasses={placedClasses}
-        conflictingIds={conflictingIds}
-        gridAxis={gridAxis}
-        onRemoveClass={removeClass}
-      />
+      <GridCanvas placedClasses={placedClasses} gridAxis={gridAxis} onRemoveClass={removeClass} />
       <UnscheduledList classes={unscheduled} onRemoveClass={removeClass} />
     </main>
   )

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import { useForm } from 'react-hook-form'
 import type { Class, Day } from '../../types'
@@ -71,7 +72,13 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
     reset,
     watch,
     formState: { errors },
-  } = useForm<ClassFormValues>({ values: toFormValues(editingClass) })
+  } = useForm<ClassFormValues>({ defaultValues: toFormValues(editingClass) })
+
+  // Reset on every open: RHF keeps dirty values otherwise, leaking the
+  // previously saved class into the next "Add Class" session
+  useEffect(() => {
+    if (isOpen) reset(toFormValues(editingClass))
+  }, [isOpen, editingClass, reset])
 
   const days = watch('days')
   const start = watch('start')
