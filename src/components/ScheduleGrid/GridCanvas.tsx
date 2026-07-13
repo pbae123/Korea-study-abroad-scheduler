@@ -6,6 +6,8 @@ import { layoutDayBlocks } from '../../utils/layout'
 // Fixed v1 block fill; the Color field is deferred (CONTEXT.md "Color")
 const BLOCK_FILL = '#FFFCF0'
 const PX_PER_MINUTE = 1
+// Yonsei-style class periods: each numbered row is a 50-minute period
+const PERIOD_MINUTES = 50
 
 interface GridCanvasProps {
   placedClasses: Class[]
@@ -34,7 +36,7 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
     <div className="flex-1 overflow-auto bg-white p-3">
       <div className="flex min-w-[640px]">
         {/* Time axis: a visual reference only — blocks position by actual clock time */}
-        <div className="w-20 shrink-0">
+        <div className="w-24 shrink-0">
           <div className="h-7" />
           <div className="relative" style={{ height: canvasHeight }}>
             {rowStarts.map((minutes, index) => (
@@ -43,7 +45,7 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
                 className="absolute right-2 text-[10px] text-gray-400"
                 style={{ top: (minutes - startMinutes) * PX_PER_MINUTE }}
               >
-                ({index + 1}) {minutesToTime(minutes)}
+                ({index + 1}) {minutesToTime(minutes)}-{minutesToTime(minutes + PERIOD_MINUTES)}
               </div>
             ))}
           </div>

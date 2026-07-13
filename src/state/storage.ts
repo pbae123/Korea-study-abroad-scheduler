@@ -4,7 +4,7 @@ const STORAGE_KEY = 'ksas:v1'
 
 export const DEFAULT_GRID_AXIS = {
   startMinutes: 9 * 60,
-  endMinutes: 18 * 60,
+  endMinutes: 19 * 60,
   intervalMinutes: 60,
 }
 
@@ -24,7 +24,9 @@ export function loadState(): AppState {
     if (!raw) return createInitialState()
     const parsed: unknown = JSON.parse(raw)
     if (!isValidState(parsed)) return createInitialState()
-    return parsed
+    // Grid axis is a code-defined visual setting with no in-app editor;
+    // always use the current default so axis changes reach existing users
+    return { ...parsed, gridAxis: DEFAULT_GRID_AXIS }
   } catch {
     return createInitialState()
   }
