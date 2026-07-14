@@ -11,7 +11,7 @@ export function UnscheduledList({ classes, onRemoveClass }: UnscheduledListProps
 
   return (
     <div className="border-t border-gray-200 px-3 py-2">
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+      <p className="mb-1 text-[0.625rem] font-medium uppercase tracking-wide text-gray-400">
         No set time
       </p>
       <div className="flex flex-wrap gap-1.5">

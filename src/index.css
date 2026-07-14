@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+/* Edit this to resize all text in the app (Tailwind text sizes are rem-based,
+   so they scale off the root font-size). 100% = default size. */
+:root {
+  font-size: 100%;
+}

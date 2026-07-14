@@ -2,6 +2,7 @@ import type { Class, Day, GridAxis } from '../../types'
 import { ALL_DAYS } from '../../types'
 import { findConflictingClassIds, formatTimeRange, minutesToTime, timeToMinutes } from '../../utils/time'
 import { layoutDayBlocks } from '../../utils/layout'
+import { TEXT_SIZES } from '../../config/textSizes'
 
 // Fixed v1 block fill; the Color field is deferred (CONTEXT.md "Color")
 const BLOCK_FILL = '#FFFCF0'
@@ -45,8 +46,8 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
             {rowStarts.map((minutes, index) => (
               <div
                 key={minutes}
-                className="absolute right-2 text-[10px] text-gray-400"
-                style={{ top: `${toPercent(minutes)}%` }}
+                className="absolute right-2 text-gray-400"
+                style={{ top: `${toPercent(minutes)}%`, fontSize: `${TEXT_SIZES.yAxisTimeLabel}rem` }}
               >
                 ({index + 1}) {minutesToTime(minutes)}-{minutesToTime(minutes + PERIOD_MINUTES)}
               </div>
@@ -62,7 +63,10 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
           const dayLayouts = layoutDayBlocks(dayBlocks)
           return (
           <div key={day} className="flex min-w-0 flex-1 flex-col border-l border-gray-100">
-            <div className="flex h-7 shrink-0 items-center justify-center text-xs font-medium text-gray-600">
+            <div
+              className="flex h-7 shrink-0 items-center justify-center font-medium text-gray-600"
+              style={{ fontSize: `${TEXT_SIZES.dayOfWeekHeader}rem` }}
+            >
               {day}
             </div>
             <div className="relative flex-1">
@@ -84,7 +88,7 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
                 return (
                   <div
                     key={cls.id}
-                    className={`group absolute overflow-hidden rounded border px-1.5 py-1 text-[11px] leading-tight ${
+                    className={`group absolute overflow-hidden rounded border px-1.5 py-1 leading-tight ${
                       isConflicting ? 'border-red-500 ring-1 ring-red-400' : 'border-gray-300'
                     }`}
                     style={{
@@ -108,10 +112,34 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
                     >
                       ×
                     </button>
-                    <p className="truncate font-medium text-gray-900">{cls.name}</p>
-                    <p className="truncate text-gray-500">{formatTimeRange(block.start, block.end)}</p>
-                    {cls.location && <p className="truncate text-gray-500">{cls.location}</p>}
-                    {isConflicting && <p className="font-medium text-red-600">conflict</p>}
+                    <p
+                      className="truncate font-medium text-gray-900"
+                      style={{ fontSize: `${TEXT_SIZES.classBlockTitle}rem` }}
+                    >
+                      {cls.name}
+                    </p>
+                    <p
+                      className="truncate text-gray-500"
+                      style={{ fontSize: `${TEXT_SIZES.classBlockDetail}rem` }}
+                    >
+                      {formatTimeRange(block.start, block.end)}
+                    </p>
+                    {cls.location && (
+                      <p
+                        className="truncate text-gray-500"
+                        style={{ fontSize: `${TEXT_SIZES.classBlockDetail}rem` }}
+                      >
+                        {cls.location}
+                      </p>
+                    )}
+                    {isConflicting && (
+                      <p
+                        className="font-medium text-red-600"
+                        style={{ fontSize: `${TEXT_SIZES.classBlockDetail}rem` }}
+                      >
+                        conflict
+                      </p>
+                    )}
                   </div>
                 )
               })}

@@ -54,7 +54,7 @@ export function ClassCard({
           {cls.tags.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {cls.tags.map((tag) => (
-                <span key={tag} className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">
+                <span key={tag} className="rounded bg-gray-100 px-1.5 py-0.5 text-[0.625rem] text-gray-600">
                   {tag}
                 </span>
               ))}

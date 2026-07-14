@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Schedule } from '../../types'
 import { useAppDispatch } from '../../state/AppContext'
+import { TEXT_SIZES } from '../../config/textSizes'
 
 interface ScheduleTabsProps {
   schedules: Schedule[]
@@ -67,7 +68,8 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
               if (e.key === 'Enter') commitRename()
               if (e.key === 'Escape') setRenamingId(null)
             }}
-            className="-mb-px w-32 rounded-t-lg border border-b-0 border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none"
+            className="-mb-px w-32 rounded-t-lg border border-b-0 border-gray-300 bg-white px-3 py-1.5 focus:outline-none"
+            style={{ fontSize: `${TEXT_SIZES.scheduleTabLabel}rem` }}
           />
         ) : (
           // Browser-style tab: outlined, rounded top, active tab merges into the
@@ -80,11 +82,12 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
               setRenameValue(schedule.name)
             }}
             title="Double-click to rename"
-            className={`-mb-px flex cursor-pointer select-none items-center gap-2 rounded-t-lg border px-3 py-1.5 text-xs ${
+            className={`-mb-px flex cursor-pointer select-none items-center gap-2 rounded-t-lg border px-3 py-1.5 ${
               isActive
                 ? 'border-gray-300 border-b-white bg-white font-medium text-gray-900'
                 : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
             }`}
+            style={{ fontSize: `${TEXT_SIZES.scheduleTabLabel}rem` }}
           >
             <span className="max-w-32 truncate">{schedule.name}</span>
             {schedules.length > 1 && (
