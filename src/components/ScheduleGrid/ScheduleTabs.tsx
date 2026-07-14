@@ -54,7 +54,7 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
   }
 
   return (
-    <div className="flex items-end gap-1 border-b border-gray-300 bg-gray-100 px-3 pt-2">
+    <div className="flex items-end gap-1 border-b border-gray-300 bg-gray-100 px-3 pt-4">
       {schedules.map((schedule) => {
         const isActive = schedule.id === activeScheduleId
         return renamingId === schedule.id ? (
