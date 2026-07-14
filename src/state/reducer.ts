@@ -8,6 +8,12 @@ export type Action =
   | { type: 'RENAME_SCHEDULE'; scheduleId: string; name: string }
   | { type: 'DELETE_SCHEDULE'; scheduleId: string }
   | { type: 'DUPLICATE_SCHEDULE'; scheduleId: string; newSchedule: Schedule }
+  | {
+      type: 'REORDER_SCHEDULES'
+      sourceScheduleId: string
+      targetScheduleId: string
+      placeAfter: boolean
+    }
   | { type: 'SET_ACTIVE_SCHEDULE'; scheduleId: string }
   | { type: 'PLACE_CLASS'; scheduleId: string; classId: string }
   | { type: 'REMOVE_PLACEMENT'; scheduleId: string; classId: string }
@@ -64,6 +70,18 @@ export function appReducer(state: AppState, action: Action): AppState {
         schedules: [...state.schedules, action.newSchedule],
         activeScheduleId: action.newSchedule.id,
       }
+
+    case 'REORDER_SCHEDULES': {
+      if (action.sourceScheduleId === action.targetScheduleId) return state
+      const source = state.schedules.find((s) => s.id === action.sourceScheduleId)
+      const targetIndex = state.schedules.findIndex((s) => s.id === action.targetScheduleId)
+      if (!source || targetIndex === -1) return state
+
+      const schedules = state.schedules.filter((s) => s.id !== action.sourceScheduleId)
+      const adjustedTargetIndex = schedules.findIndex((s) => s.id === action.targetScheduleId)
+      schedules.splice(adjustedTargetIndex + (action.placeAfter ? 1 : 0), 0, source)
+      return { ...state, schedules }
+    }
 
     case 'SET_ACTIVE_SCHEDULE':
       return { ...state, activeScheduleId: action.scheduleId }

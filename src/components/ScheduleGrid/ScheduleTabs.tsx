@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { DragEvent } from 'react'
 import type { Schedule } from '../../types'
 import { useAppDispatch } from '../../state/AppContext'
 import { TEXT_SIZES } from '../../config/textSizes'
@@ -23,6 +24,12 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
   const dispatch = useAppDispatch()
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [draggedScheduleId, setDraggedScheduleId] = useState<string | null>(null)
+  const [dropIndicator, setDropIndicator] = useState<{
+    targetScheduleId: string
+    placeAfter: boolean
+  } | null>(null)
+  const didDrag = useRef(false)
 
   const commitRename = () => {
     if (renamingId && renameValue.trim()) {
@@ -53,6 +60,47 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
     })
   }
 
+  const handleDragStart = (event: DragEvent<HTMLDivElement>, scheduleId: string) => {
+    didDrag.current = false
+    setDraggedScheduleId(scheduleId)
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', scheduleId)
+  }
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>, targetScheduleId: string) => {
+    event.preventDefault()
+    const sourceScheduleId = draggedScheduleId ?? event.dataTransfer.getData('text/plain')
+    setDropIndicator(null)
+    if (!sourceScheduleId || sourceScheduleId === targetScheduleId) return
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    didDrag.current = true
+    dispatch({
+      type: 'REORDER_SCHEDULES',
+      sourceScheduleId,
+      targetScheduleId,
+      placeAfter: event.clientX > bounds.left + bounds.width / 2,
+    })
+  }
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>, targetScheduleId: string) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    const sourceScheduleId = draggedScheduleId ?? event.dataTransfer.getData('text/plain')
+    if (!sourceScheduleId || sourceScheduleId === targetScheduleId) {
+      setDropIndicator(null)
+      return
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const placeAfter = event.clientX > bounds.left + bounds.width / 2
+    setDropIndicator((current) =>
+      current?.targetScheduleId === targetScheduleId && current.placeAfter === placeAfter
+        ? current
+        : { targetScheduleId, placeAfter },
+    )
+  }
+
   return (
     <div className="flex items-end gap-1 border-b border-gray-300 bg-gray-100 px-3 pt-4">
       {schedules.map((schedule) => {
@@ -76,19 +124,39 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
           // white content area below (border-b hidden via -mb-px + white bg)
           <div
             key={schedule.id}
-            onClick={() => dispatch({ type: 'SET_ACTIVE_SCHEDULE', scheduleId: schedule.id })}
+            draggable
+            onDragStart={(event) => handleDragStart(event, schedule.id)}
+            onDragEnd={() => {
+              setDraggedScheduleId(null)
+              setDropIndicator(null)
+            }}
+            onDragOver={(event) => handleDragOver(event, schedule.id)}
+            onDrop={(event) => handleDrop(event, schedule.id)}
+            onClick={() => {
+              if (!didDrag.current) dispatch({ type: 'SET_ACTIVE_SCHEDULE', scheduleId: schedule.id })
+              didDrag.current = false
+            }}
             onDoubleClick={() => {
               setRenamingId(schedule.id)
               setRenameValue(schedule.name)
             }}
             title="Double-click to rename"
-            className={`-mb-px flex cursor-pointer select-none items-center gap-2 rounded-t-lg border px-3 py-1.5 ${
-              isActive
+            className={`relative -mb-px flex cursor-grab select-none items-center gap-2 rounded-t-lg border px-3 py-1.5 active:cursor-grabbing ${
+              draggedScheduleId === schedule.id ? 'opacity-50 ' : ''
+            }${isActive
                 ? 'border-gray-300 border-b-white bg-white font-medium text-gray-900'
                 : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
             }`}
             style={{ fontSize: `${TEXT_SIZES.scheduleTabLabel}rem` }}
           >
+            {dropIndicator?.targetScheduleId === schedule.id && (
+              <span
+                aria-hidden="true"
+                className={`absolute inset-y-1 z-10 w-0.5 rounded bg-blue-500 ${
+                  dropIndicator.placeAfter ? '-right-1' : '-left-1'
+                }`}
+              />
+            )}
             <span className="max-w-32 truncate">{schedule.name}</span>
             {schedules.length > 1 && (
               <button
@@ -99,7 +167,7 @@ export function ScheduleTabs({ schedules, activeScheduleId }: ScheduleTabsProps)
                   dispatch({ type: 'DELETE_SCHEDULE', scheduleId: schedule.id })
                 }}
                 title={`Close ${schedule.name}`}
-                className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-300 hover:text-gray-800"
+                className="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-gray-400 hover:bg-gray-300 hover:text-gray-800"
               >
                 ×
               </button>
