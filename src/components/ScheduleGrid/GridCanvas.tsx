@@ -40,13 +40,13 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
     <div className="flex flex-1 overflow-auto bg-white p-3">
       <div className="flex min-h-[480px] w-full min-w-[640px]">
         {/* Time axis: a visual reference only — blocks position by actual clock time */}
-        <div className="flex w-24 shrink-0 flex-col">
+        <div className="flex w-28 shrink-0 flex-col">
           <div className="h-7 shrink-0" />
           <div className="relative flex-1">
             {rowStarts.map((minutes, index) => (
               <div
                 key={minutes}
-                className="absolute right-2 text-gray-400"
+                className="absolute right-2 whitespace-nowrap text-gray-400"
                 style={{ top: `${toPercent(minutes)}%`, fontSize: `${TEXT_SIZES.yAxisTimeLabel}rem` }}
               >
                 ({index + 1}) {minutesToTime(minutes)}-{minutesToTime(minutes + PERIOD_MINUTES)}

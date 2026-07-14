@@ -6,7 +6,11 @@ import { ClassCard } from './ClassCard'
 import { ClassFormModal } from './ClassFormModal'
 import { DeleteClassDialog } from './DeleteClassDialog'
 
-export function CourseBank() {
+interface CourseBankProps {
+  width: number
+}
+
+export function CourseBank({ width }: CourseBankProps) {
   const { classes, schedules, activeScheduleId } = useAppState()
   const dispatch = useAppDispatch()
 
@@ -46,7 +50,10 @@ export function CourseBank() {
     : 0
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-gray-200 bg-gray-50">
+    <aside
+      className="flex h-full shrink-0 flex-col border-r border-gray-200 bg-gray-50"
+      style={{ width }}
+    >
       <div className="space-y-2 border-b border-gray-200 p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">Course Bank</h2>
