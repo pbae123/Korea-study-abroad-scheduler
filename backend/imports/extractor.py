@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 from PIL import Image
 from pydantic import ValidationError
 
-from .schemas import CourseCodeExtractionResult, CourseImportResult
+from .schemas import CourseCodeExtractionResult, CourseImportResult, ImportedCourse, TimeExtractionResult, parse_source_time
 
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 EXTRACTION_PROMPT = """Extract every visible university course row from this screenshot. Return only JSON matching the supplied schema.
@@ -19,6 +19,7 @@ Read the Time column with this exact grammar. Each day abbreviation starts a new
 
 Each course must have a non-empty name and at least one meetingBlocks item. Each meeting block must use one or more of these exact day abbreviations: Mon, Tue, Wed, Thu, Fri, Sat, Sun; startPeriod and endPeriod must be integers from 1 through 10, with endPeriod no earlier than startPeriod. Optional text fields may be strings or null. Preserve readable Korean and English text. Never invent a value: use null and add a warning for ambiguous optional text. Create separate meetingBlocks when a course has different times on different days. Do not include markdown or explanatory prose."""
 COURSE_CODE_PROMPT = """This image is a narrow crop of the Course Code-Sec.-Lab column from an Opened Course List. Read one course code for each visible course row, from top to bottom. Return them in the courseCodes array in that same order. Preserve the exact text, including its department prefix, course number, section, and lab suffix (examples: ECO3101-01-00, ECO3134-02-00, ECO6204-01-00). Ignore table headings, action icons, credit values, and all non-code text. Use null only for a row whose code is unreadable. Do not include markdown or prose."""
+TIME_PROMPT = """This image is a crop around the Time column of an Opened Course List. Read one Time cell for each visible course row, from top to bottom. Return each cell's exact compact text in the sourceTimes array in the same row order. Preserve every day abbreviation and period number. Examples: Tue1,Thu2,3; Tue7/Thu8,9; Tue4/Thu5,6; Mon9,10/Wed10. Do not combine days or carry a period across a comma or slash when a new day abbreviation follows. Every visible row has a readable Time value: transcribe it rather than returning null. Use the JSON null value, never the string "null", only when a cell is genuinely unreadable. Ignore neighboring Professor and Lecture room cells, table headings, and all other text. Do not include markdown or prose."""
 
 
 class ExtractorError(Exception):
@@ -31,21 +32,17 @@ def extract_courses(image_bytes: bytes, mime_type: str) -> CourseImportResult:
     content = request_model(image_bytes, EXTRACTION_PROMPT, CourseImportResult)
     result = validate_model_response(content, CourseImportResult)
     course_codes = extract_course_codes(image_bytes, len(result.courses))
+    source_times = extract_source_times(image_bytes, len(result.courses))
     course_codes = course_codes or [None] * len(result.courses)
+    source_times = source_times or [None] * len(result.courses)
     courses = [
-        course.model_copy(update={
-            "courseCode": code.strip() if code and not course.courseCode else course.courseCode,
-            "credits": None,
-            "school": None,
-            "instructor": None,
-            "location": None,
-        })
-        for course, code in zip(result.courses, course_codes)
+        merge_course_fields(course, code, source_time)
+        for course, code, source_time in zip(result.courses, course_codes, source_times)
     ]
     return result.model_copy(update={"courses": courses})
 
 
-def request_model(image_bytes: bytes, prompt: str, response_model: type[CourseImportResult] | type[CourseCodeExtractionResult]) -> str:
+def request_model(image_bytes: bytes, prompt: str, response_model: type[CourseImportResult] | type[CourseCodeExtractionResult] | type[TimeExtractionResult]) -> str:
     base_url = os.environ.get("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL).rstrip("/")
     model = os.environ.get("OLLAMA_MODEL", "qwen2.5vl:7b")
     payload = {
@@ -82,7 +79,7 @@ def request_model(image_bytes: bytes, prompt: str, response_model: type[CourseIm
             "The Ollama response did not contain message.content.",
         ) from error
 
-def validate_model_response(content: str, response_model: type[CourseImportResult] | type[CourseCodeExtractionResult]):
+def validate_model_response(content: str, response_model: type[CourseImportResult] | type[CourseCodeExtractionResult] | type[TimeExtractionResult]):
     try:
         parsed = json.loads(content)
     except json.JSONDecodeError as error:
@@ -110,6 +107,16 @@ def extract_course_codes(image_bytes: bytes, course_count: int) -> list[str | No
     return result.courseCodes if len(result.courseCodes) == course_count else None
 
 
+def extract_source_times(image_bytes: bytes, course_count: int) -> list[str | None] | None:
+    """Read compact time notation in a focused pass; a mismatch is never merged by guesswork."""
+    try:
+        content = request_model(crop_time_column(image_bytes), TIME_PROMPT, TimeExtractionResult)
+        result = validate_model_response(content, TimeExtractionResult)
+    except ExtractorError:
+        return None
+    return result.sourceTimes if len(result.sourceTimes) == course_count else None
+
+
 def crop_course_code_column(image_bytes: bytes) -> bytes:
     """Crop the stable Course Code-Sec.-Lab column from the supplied table view."""
     with Image.open(BytesIO(image_bytes)) as image:
@@ -119,6 +126,34 @@ def crop_course_code_column(image_bytes: bytes) -> bytes:
         output = BytesIO()
         cropped.save(output, format="PNG")
     return output.getvalue()
+
+
+def crop_time_column(image_bytes: bytes) -> bytes:
+    """Crop the Time column plus small visual context from the standard table view."""
+    with Image.open(BytesIO(image_bytes)) as image:
+        left = round(image.width * 0.50)
+        right = round(image.width * 0.72)
+        cropped = image.crop((left, 0, right, image.height)).convert("RGB")
+        cropped = cropped.resize((cropped.width * 3, cropped.height * 3), Image.Resampling.LANCZOS)
+        output = BytesIO()
+        cropped.save(output, format="PNG")
+    return output.getvalue()
+
+
+def merge_course_fields(course: ImportedCourse, code: str | None, source_time: str | None) -> ImportedCourse:
+    values = course.model_dump()
+    values.update({
+        "courseCode": code.strip() if code and not course.courseCode else course.courseCode,
+        "credits": None,
+        "school": None,
+        "instructor": None,
+        "location": None,
+    })
+    # Re-validating lets ImportedCourse's sourceTime validator regenerate the
+    # meeting blocks from the focused transcription rather than the broad pass.
+    if source_time and parse_source_time(source_time) is not None:
+        values["sourceTime"] = source_time
+    return ImportedCourse.model_validate(values)
 
 
 def validation_details(error: ValidationError, content: str) -> str:

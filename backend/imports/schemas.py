@@ -68,6 +68,11 @@ class CourseCodeExtractionResult(BaseModel):
     courseCodes: list[Optional[str]]
 
 
+class TimeExtractionResult(BaseModel):
+    # Times are positional: item N belongs to visible course row N.
+    sourceTimes: list[Optional[str]]
+
+
 def parse_source_time(source_time: str) -> list[dict[str, Any]] | None:
     """Parse compact Yonsei Time cells such as ``Tue5,6/Thu4`` without model inference."""
     matches = list(TIME_SESSION.finditer(source_time))
