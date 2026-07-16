@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+# Local environment files can contain credentials. Commit only .env.example
+# templates with placeholder values.
+.env
+.env.*
+!.env.example
 backend/.venv/
 backend/.env
 

@@ -16,6 +16,7 @@ const PERIODS = [
 
 interface ReviewCandidate extends ImportedCourseCandidate {
   selected: boolean
+  tagsText: string
 }
 
 interface ImportCoursesModalProps {
@@ -53,7 +54,7 @@ export function ImportCoursesModal({ isOpen, existingClasses, onClose, onAddClas
     setError(null)
     try {
       const parsed = await parseCourseImages(images)
-      setCandidates(parsed.map((candidate) => ({ ...candidate, selected: true })))
+      setCandidates(parsed.map((candidate) => ({ ...candidate, selected: true, tagsText: '' })))
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to parse the image.')
     } finally {
@@ -136,6 +137,10 @@ export function ImportCoursesModal({ isOpen, existingClasses, onClose, onAddClas
                           <input value={candidate.location ?? ''} onChange={(event) => updateCandidate(candidateIndex, { location: event.target.value || null })} className={inputClass} placeholder="Location" aria-label="Location" />
                           <input value={candidate.school ?? ''} onChange={(event) => updateCandidate(candidateIndex, { school: event.target.value || null })} className={inputClass} placeholder="School" aria-label="School" />
                         </div>
+                        <div>
+                          <label className="mb-0.5 block text-xs font-medium text-gray-600">Tags <span className="font-normal text-gray-400">(comma-separated)</span></label>
+                          <input value={candidate.tagsText} onChange={(event) => updateCandidate(candidateIndex, { tagsText: event.target.value })} className={inputClass} placeholder="Economics, Korean" aria-label="Tags" />
+                        </div>
                         {candidate.meetingBlocks.map((block, blockIndex) => (
                           <div key={blockIndex} className="rounded bg-gray-50 p-2">
                             <div className="flex flex-wrap gap-2">
@@ -175,10 +180,11 @@ function updatePeriod(index: number, blockIndex: number, field: 'startPeriod' | 
 }
 
 function toClass(candidate: ReviewCandidate): Omit<Class, 'id'> {
+  const tags = [...new Set(candidate.tagsText.split(',').map((tag) => tag.trim()).filter(Boolean))]
   return {
     name: candidate.name.trim(), courseCode: candidate.courseCode?.trim() || undefined, credits: candidate.credits?.trim() || undefined,
     school: candidate.school?.trim() || undefined, instructor: candidate.instructor?.trim() || undefined, location: candidate.location?.trim() || undefined,
-    tags: [],
+    tags,
     meetingBlocks: candidate.meetingBlocks.map((block) => ({
       days: block.days,
       start: PERIODS.find((period) => period.number === block.startPeriod)?.start ?? '09:00',
