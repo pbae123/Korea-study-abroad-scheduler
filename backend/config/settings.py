@@ -1,6 +1,16 @@
 import os
+from pathlib import Path
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "development-only-secret")
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+# Local credentials live in backend/.env, which is deliberately ignored by Git.
+# Real deployment environments provide the same values through their secret store.
+load_dotenv(BASE_DIR / ".env")
+
+# This fallback is for the stateless local development/test server only. Set a
+# real value in backend/.env before deploying anywhere shared or public.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "unsafe-development-key-do-not-deploy")
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = [host for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host]
 INSTALLED_APPS = ["corsheaders", "rest_framework", "imports"]
