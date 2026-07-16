@@ -1,4 +1,4 @@
-import type { Class, Day } from '../types'
+import type { Class, Day, MeetingBlock } from '../types'
 
 export function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number)
@@ -21,12 +21,17 @@ function shareDay(daysA: Day[], daysB: Day[]): boolean {
 
 // True overlap only — back-to-back classes are not conflicts (CONTEXT.md "Conflict")
 export function classesConflict(a: Class, b: Class): boolean {
-  if (!a.timeBlock || !b.timeBlock) return false
-  if (!shareDay(a.timeBlock.days, b.timeBlock.days)) return false
-  const startA = timeToMinutes(a.timeBlock.start)
-  const endA = timeToMinutes(a.timeBlock.end)
-  const startB = timeToMinutes(b.timeBlock.start)
-  const endB = timeToMinutes(b.timeBlock.end)
+  return a.meetingBlocks.some((blockA) =>
+    b.meetingBlocks.some((blockB) => blocksConflict(blockA, blockB)),
+  )
+}
+
+export function blocksConflict(a: MeetingBlock, b: MeetingBlock): boolean {
+  if (!shareDay(a.days, b.days)) return false
+  const startA = timeToMinutes(a.start)
+  const endA = timeToMinutes(a.end)
+  const startB = timeToMinutes(b.start)
+  const endB = timeToMinutes(b.end)
   return startA < endB && startB < endA
 }
 

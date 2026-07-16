@@ -5,6 +5,7 @@ import { TagFilterBar } from './TagFilterBar'
 import { ClassCard } from './ClassCard'
 import { ClassFormModal } from './ClassFormModal'
 import { DeleteClassDialog } from './DeleteClassDialog'
+import { ImportCoursesModal } from './ImportCoursesModal'
 
 interface CourseBankProps {
   width: number
@@ -18,6 +19,7 @@ export function CourseBank({ width }: CourseBankProps) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Class | null>(null)
   const [deletingClass, setDeletingClass] = useState<Class | null>(null)
+  const [isImportOpen, setIsImportOpen] = useState(false)
 
   const activeSchedule = schedules.find((s) => s.id === activeScheduleId)
 
@@ -55,18 +57,21 @@ export function CourseBank({ width }: CourseBankProps) {
       style={{ width }}
     >
       <div className="space-y-2 border-b border-gray-200 p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-gray-900">Course Bank</h2>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingClass(null)
-              setIsFormOpen(true)
-            }}
-            className="rounded bg-gray-900 px-2.5 py-1 text-xs text-white hover:bg-gray-700"
-          >
-            + Add Class
-          </button>
+          <div className="flex gap-1">
+            <button type="button" onClick={() => setIsImportOpen(true)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100">Import image</button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingClass(null)
+                setIsFormOpen(true)
+              }}
+              className="rounded bg-gray-900 px-2.5 py-1 text-xs text-white hover:bg-gray-700"
+            >
+              + Add Class
+            </button>
+          </div>
         </div>
         <TagFilterBar
           allTags={allTags}
@@ -120,6 +125,15 @@ export function CourseBank({ width }: CourseBankProps) {
           if (deletingClass) dispatch({ type: 'DELETE_CLASS', classId: deletingClass.id })
           setDeletingClass(null)
         }}
+      />
+
+      <ImportCoursesModal
+        isOpen={isImportOpen}
+        existingClasses={classes}
+        onClose={() => setIsImportOpen(false)}
+        onAddClasses={(newClasses) =>
+          dispatch({ type: 'ADD_CLASSES', classes: newClasses.map((cls) => ({ ...cls, id: crypto.randomUUID() })) })
+        }
       />
     </aside>
   )

@@ -2,6 +2,7 @@ import type { AppState, Class, Schedule } from '../types'
 
 export type Action =
   | { type: 'ADD_CLASS'; class: Class }
+  | { type: 'ADD_CLASSES'; classes: Class[] }
   | { type: 'UPDATE_CLASS'; class: Class }
   | { type: 'DELETE_CLASS'; classId: string }
   | { type: 'ADD_SCHEDULE'; schedule: Schedule }
@@ -22,6 +23,9 @@ export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'ADD_CLASS':
       return { ...state, classes: [...state.classes, action.class] }
+
+    case 'ADD_CLASSES':
+      return { ...state, classes: [...state.classes, ...action.classes] }
 
     case 'UPDATE_CLASS':
       return {

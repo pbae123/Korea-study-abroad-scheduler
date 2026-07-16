@@ -44,10 +44,14 @@ export function ClassCard({
           {metaParts.length > 0 && (
             <p className="truncate text-xs text-gray-500">{metaParts.join(' · ')}</p>
           )}
-          {cls.timeBlock ? (
-            <p className="text-xs text-gray-500">
-              {cls.timeBlock.days.join('/')} {formatTimeRange(cls.timeBlock.start, cls.timeBlock.end)}
-            </p>
+          {cls.meetingBlocks.length > 0 ? (
+            <div className="text-xs text-gray-500">
+              {cls.meetingBlocks.map((block, index) => (
+                <p key={`${block.days.join('-')}-${block.start}-${index}`}>
+                  {block.days.join('/')} {formatTimeRange(block.start, block.end)}
+                </p>
+              ))}
+            </div>
           ) : (
             <p className="text-xs italic text-gray-400">no set time</p>
           )}

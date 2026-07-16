@@ -9,7 +9,7 @@ Yonsei class scheduling system is terrible. Built this to make things easier
 - **dnd-kit** for drag-and-drop placement of Classes onto the Schedule Grid
 - **react-hook-form** for the Add Class form (multi-field validation, multi-add flow)
 - **@headlessui/react** for accessible modal/dropdown primitives, styled with Tailwind
-- **localStorage** (plain JSON, no persistence library) for all data — no backend
-- **No automated test suite** — this is a personal single-user tool verified by manual use in-browser
+- **localStorage** (plain JSON, no persistence library) for course and schedule data
+- **Django REST API + local Ollama** for transient screenshot parsing with Qwen2.5-VL
 
-See `CONTEXT.md` for the domain glossary (Class, Placement, Schedule, Conflict, etc.) and `docs/adr/` for architecture decision records.
+See `CONTEXT.md` for the domain glossary (Class, Placement, Schedule, Conflict, etc.), `backend/README.md` for API setup, and `docs/adr/` for architecture decision records.

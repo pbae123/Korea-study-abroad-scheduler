@@ -1,4 +1,4 @@
-import type { Class } from '../types'
+import type { MeetingBlock } from '../types'
 import { timeToMinutes } from './time'
 
 export interface BlockLayout {
@@ -8,10 +8,14 @@ export interface BlockLayout {
 
 // Assigns side-by-side columns to time-overlapping blocks within one day,
 // so conflicting classes render next to each other instead of stacking
-export function layoutDayBlocks(blocks: Class[]): Map<string, BlockLayout> {
+export interface ScheduledBlock {
+  id: string
+  block: MeetingBlock
+}
+
+export function layoutDayBlocks(blocks: ScheduledBlock[]): Map<string, BlockLayout> {
   const sorted = [...blocks]
-    .filter((c) => c.timeBlock)
-    .sort((a, b) => timeToMinutes(a.timeBlock!.start) - timeToMinutes(b.timeBlock!.start))
+    .sort((a, b) => timeToMinutes(a.block.start) - timeToMinutes(b.block.start))
 
   const layouts = new Map<string, BlockLayout>()
   let cluster: { id: string; end: number; column: number }[] = []
@@ -28,9 +32,9 @@ export function layoutDayBlocks(blocks: Class[]): Map<string, BlockLayout> {
     clusterColumns = 0
   }
 
-  for (const cls of sorted) {
-    const start = timeToMinutes(cls.timeBlock!.start)
-    const end = timeToMinutes(cls.timeBlock!.end)
+  for (const scheduledBlock of sorted) {
+    const start = timeToMinutes(scheduledBlock.block.start)
+    const end = timeToMinutes(scheduledBlock.block.end)
 
     const active = cluster.filter((entry) => entry.end > start)
     if (active.length === 0 && cluster.length > 0) finalizeCluster()
@@ -40,10 +44,10 @@ export function layoutDayBlocks(blocks: Class[]): Map<string, BlockLayout> {
     let column = 0
     while (usedColumns.has(column)) column++
 
-    cluster.push({ id: cls.id, end, column })
-    clusterIds.push(cls.id)
+    cluster.push({ id: scheduledBlock.id, end, column })
+    clusterIds.push(scheduledBlock.id)
     clusterColumns = Math.max(clusterColumns, column + 1)
-    layouts.set(cls.id, { column, columnCount: clusterColumns })
+    layouts.set(scheduledBlock.id, { column, columnCount: clusterColumns })
   }
   finalizeCluster()
 

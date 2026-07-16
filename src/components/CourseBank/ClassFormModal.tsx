@@ -1,8 +1,14 @@
 import { useEffect } from 'react'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import type { Class, Day } from '../../types'
 import { ALL_DAYS } from '../../types'
+
+interface MeetingBlockFormValues {
+  days: Day[]
+  startPeriod: string
+  endPeriod: string
+}
 
 interface ClassFormValues {
   name: string
@@ -14,9 +20,7 @@ interface ClassFormValues {
   link: string
   notes: string
   tagsText: string
-  days: Day[]
-  startPeriod: string
-  endPeriod: string
+  meetingBlocks: MeetingBlockFormValues[]
 }
 
 const CLASS_PERIODS = [
@@ -62,15 +66,16 @@ function toFormValues(cls: Class | null): ClassFormValues {
     link: cls?.link ?? '',
     notes: cls?.notes ?? '',
     tagsText: cls?.tags.join(', ') ?? '',
-    days: cls?.timeBlock?.days ?? [],
-    startPeriod: periodForStart(cls?.timeBlock?.start),
-    endPeriod: periodForEnd(cls?.timeBlock?.end),
+    meetingBlocks:
+      cls?.meetingBlocks.map((block) => ({
+        days: block.days,
+        startPeriod: periodForStart(block.start),
+        endPeriod: periodForEnd(block.end),
+      })) ?? [{ days: [], startPeriod: '', endPeriod: '' }],
   }
 }
 
 function toClass(values: ClassFormValues): Omit<Class, 'id'> {
-  const startPeriod = periodByNumber(values.startPeriod)!
-  const endPeriod = periodByNumber(values.endPeriod)!
   const tags = [...new Set(values.tagsText.split(',').map((t) => t.trim()).filter(Boolean))]
   return {
     name: values.name.trim(),
@@ -82,7 +87,11 @@ function toClass(values: ClassFormValues): Omit<Class, 'id'> {
     link: values.link.trim() || undefined,
     notes: values.notes.trim() || undefined,
     tags,
-    timeBlock: { days: values.days, start: startPeriod.start, end: endPeriod.end },
+    meetingBlocks: values.meetingBlocks.map((block) => ({
+      days: block.days,
+      start: periodByNumber(block.startPeriod)!.start,
+      end: periodByNumber(block.endPeriod)!.end,
+    })),
   }
 }
 
@@ -94,17 +103,18 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
     register,
     handleSubmit,
     reset,
+    control,
     watch,
     formState: { errors },
   } = useForm<ClassFormValues>({ defaultValues: toFormValues(editingClass) })
+  const { fields, append, remove } = useFieldArray({ control, name: 'meetingBlocks' })
+  const meetingBlocks = watch('meetingBlocks')
 
   // Reset on every open: RHF keeps dirty values otherwise, leaking the
   // previously saved class into the next "Add Class" session
   useEffect(() => {
     if (isOpen) reset(toFormValues(editingClass))
   }, [isOpen, editingClass, reset])
-
-  const startPeriod = watch('startPeriod')
 
   const saveAndClose = handleSubmit((values) => {
     onSave(toClass(values))
@@ -174,60 +184,84 @@ export function ClassFormModal({ isOpen, editingClass, onClose, onSave }: ClassF
               <legend className="px-1 text-xs font-medium text-gray-600">
                 Meeting details *
               </legend>
-              <p className="mb-2 text-xs text-gray-500">Select at least one day and enter the first and last class period.</p>
-              <p className="mb-1 text-xs font-medium text-gray-600">Meeting days *</p>
-              <div className="flex flex-wrap gap-2">
-                {ALL_DAYS.map((day) => (
-                  <label key={day} className="flex items-center gap-1 text-xs text-gray-700">
-                    <input
-                      type="checkbox"
-                      value={day}
-                      {...register('days', { validate: (value) => value.length > 0 || 'Select at least one meeting day.' })}
-                    />
-                    {day}
-                  </label>
-                ))}
-              </div>
-              {errors.days && <p className="mt-1 text-xs text-red-600">{errors.days.message}</p>}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div>
-                  <label className="mb-0.5 block text-xs font-medium text-gray-600">First period *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    inputMode="numeric"
-                    placeholder="1–10"
-                    aria-describedby="period-reference"
-                    {...register('startPeriod', {
-                      required: 'Enter a first period from 1 to 10.',
-                      validate: (value) => Boolean(periodByNumber(value)) || 'Enter a number from 1 to 10.',
-                    })}
-                    className={inputClass}
-                  />
-                  {errors.startPeriod && <p className="mt-1 text-xs text-red-600">{errors.startPeriod.message}</p>}
-                </div>
-                <div>
-                  <label className="mb-0.5 block text-xs font-medium text-gray-600">Last period *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    inputMode="numeric"
-                    placeholder="1–10"
-                    aria-describedby="period-reference"
-                    {...register('endPeriod', {
-                      required: 'Enter a last period from 1 to 10.',
-                      validate: (value) => {
-                        if (!periodByNumber(value)) return 'Enter a number from 1 to 10.'
-                        return Number(value) >= Number(startPeriod) || 'Last period must be the same as or after the first period.'
-                      },
-                    })}
-                    className={inputClass}
-                  />
-                  {errors.endPeriod && <p className="mt-1 text-xs text-red-600">{errors.endPeriod.message}</p>}
-                </div>
-              </div>
+              <p className="mb-2 text-xs text-gray-500">Add a meeting block for each distinct day/time pattern.</p>
+              {fields.map((field, index) => {
+                const blockErrors = errors.meetingBlocks?.[index]
+                return (
+                  <div key={field.id} className="border-t border-gray-100 py-3 first:border-t-0 first:pt-0">
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-xs font-medium text-gray-600">Meeting block {index + 1}</p>
+                      {fields.length > 1 && (
+                        <button type="button" onClick={() => remove(index)} className="text-xs text-red-600 hover:text-red-700">
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {ALL_DAYS.map((day) => (
+                        <label key={day} className="flex items-center gap-1 text-xs text-gray-700">
+                          <input
+                            type="checkbox"
+                            value={day}
+                            {...register(`meetingBlocks.${index}.days`, {
+                              validate: (value) => value.length > 0 || 'Select at least one meeting day.',
+                            })}
+                          />
+                          {day}
+                        </label>
+                      ))}
+                    </div>
+                    {blockErrors?.days && <p className="mt-1 text-xs text-red-600">{blockErrors.days.message}</p>}
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-0.5 block text-xs font-medium text-gray-600">First period *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          inputMode="numeric"
+                          placeholder="1–10"
+                          aria-describedby="period-reference"
+                          {...register(`meetingBlocks.${index}.startPeriod`, {
+                            required: 'Enter a first period from 1 to 10.',
+                            validate: (value) => Boolean(periodByNumber(value)) || 'Enter a number from 1 to 10.',
+                          })}
+                          className={inputClass}
+                        />
+                        {blockErrors?.startPeriod && <p className="mt-1 text-xs text-red-600">{blockErrors.startPeriod.message}</p>}
+                      </div>
+                      <div>
+                        <label className="mb-0.5 block text-xs font-medium text-gray-600">Last period *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          inputMode="numeric"
+                          placeholder="1–10"
+                          aria-describedby="period-reference"
+                          {...register(`meetingBlocks.${index}.endPeriod`, {
+                            required: 'Enter a last period from 1 to 10.',
+                            validate: (value) => {
+                              if (!periodByNumber(value)) return 'Enter a number from 1 to 10.'
+                              const start = meetingBlocks[index]?.startPeriod
+                              return Number(value) >= Number(start) || 'Last period must be the same as or after the first period.'
+                            },
+                          })}
+                          className={inputClass}
+                        />
+                        {blockErrors?.endPeriod && <p className="mt-1 text-xs text-red-600">{blockErrors.endPeriod.message}</p>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => append({ days: [], startPeriod: '', endPeriod: '' })}
+                className="mt-1 text-xs font-medium text-gray-700 underline hover:text-gray-900"
+              >
+                + Add another meeting block
+              </button>
               <p id="period-reference" className="mt-2 text-xs text-gray-500">
                 Periods: {CLASS_PERIODS.map((period) => `(${period.number}) ${period.start}–${period.end}`).join(' · ')}
               </p>

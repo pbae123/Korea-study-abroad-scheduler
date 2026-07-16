@@ -19,7 +19,7 @@ export function ScheduleGrid() {
     .map((id) => classes.find((c) => c.id === id))
     .filter((c): c is NonNullable<typeof c> => c !== undefined)
 
-  const unscheduled = placedClasses.filter((c) => !c.timeBlock)
+  const unscheduled = placedClasses.filter((c) => c.meetingBlocks.length === 0)
 
   const removeClass = (classId: string) =>
     dispatch({ type: 'REMOVE_PLACEMENT', scheduleId: activeScheduleId, classId })

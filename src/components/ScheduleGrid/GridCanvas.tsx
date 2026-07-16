@@ -1,6 +1,6 @@
-import type { Class, Day, GridAxis } from '../../types'
+import type { Class, Day, GridAxis, MeetingBlock } from '../../types'
 import { ALL_DAYS } from '../../types'
-import { findConflictingClassIds, formatTimeRange, minutesToTime, timeToMinutes } from '../../utils/time'
+import { blocksConflict, formatTimeRange, minutesToTime, timeToMinutes } from '../../utils/time'
 import { layoutDayBlocks } from '../../utils/layout'
 import { TEXT_SIZES } from '../../config/textSizes'
 
@@ -15,6 +15,13 @@ interface GridCanvasProps {
   onRemoveClass: (classId: string) => void
 }
 
+interface RenderedBlock {
+  id: string
+  classId: string
+  cls: Class
+  block: MeetingBlock
+}
+
 export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanvasProps) {
   const { startMinutes, endMinutes, intervalMinutes } = gridAxis
 
@@ -23,10 +30,17 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
   const axisSpan = endMinutes - startMinutes
   const toPercent = (minutes: number) => ((minutes - startMinutes) / axisSpan) * 100
 
-  const scheduled = placedClasses.filter((c) => c.timeBlock)
+  const scheduledBlocks: RenderedBlock[] = placedClasses.flatMap((cls) =>
+    cls.meetingBlocks.map((block, index) => ({
+      id: `${cls.id}:${index}`,
+      classId: cls.id,
+      cls,
+      block,
+    })),
+  )
 
   // Weekdays always shown; weekend columns appear only when a placed class uses them
-  const usedDays = new Set(scheduled.flatMap((c) => c.timeBlock?.days ?? []))
+  const usedDays = new Set(scheduledBlocks.flatMap((item) => item.block.days))
   const days = ALL_DAYS.filter(
     (day) => !['Sat', 'Sun'].includes(day) || usedDays.has(day),
   )
@@ -34,7 +48,7 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
   const rowStarts: number[] = []
   for (let t = startMinutes; t < endMinutes; t += intervalMinutes) rowStarts.push(t)
 
-  const blocksForDay = (day: Day) => scheduled.filter((c) => c.timeBlock!.days.includes(day))
+  const blocksForDay = (day: Day) => scheduledBlocks.filter((item) => item.block.days.includes(day))
 
   return (
     <div className="flex flex-1 overflow-auto bg-white p-3">
@@ -59,8 +73,16 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
           const dayBlocks = blocksForDay(day)
           // Conflicts and column layout are evaluated per day, so a class is
           // only flagged (and shrunk) on days where the overlap actually occurs
-          const dayConflicts = findConflictingClassIds(dayBlocks)
-          const dayLayouts = layoutDayBlocks(dayBlocks)
+          const conflictingBlockIds = new Set<string>()
+          for (let index = 0; index < dayBlocks.length; index++) {
+            for (let otherIndex = index + 1; otherIndex < dayBlocks.length; otherIndex++) {
+              if (blocksConflict(dayBlocks[index].block, dayBlocks[otherIndex].block)) {
+                conflictingBlockIds.add(dayBlocks[index].id)
+                conflictingBlockIds.add(dayBlocks[otherIndex].id)
+              }
+            }
+          }
+          const dayLayouts = layoutDayBlocks(dayBlocks.map(({ id, block }) => ({ id, block })))
           return (
           <div key={day} className="flex min-w-0 flex-1 flex-col border-l border-gray-100">
             <div
@@ -77,17 +99,16 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
                   style={{ top: `${toPercent(minutes)}%` }}
                 />
               ))}
-              {dayBlocks.map((cls) => {
-                const block = cls.timeBlock!
+              {dayBlocks.map(({ id, classId, cls, block }) => {
                 const topPercent = toPercent(timeToMinutes(block.start))
                 const heightPercent =
                   ((timeToMinutes(block.end) - timeToMinutes(block.start)) / axisSpan) * 100
-                const isConflicting = dayConflicts.has(cls.id)
-                const layout = dayLayouts.get(cls.id) ?? { column: 0, columnCount: 1 }
+                const isConflicting = conflictingBlockIds.has(id)
+                const layout = dayLayouts.get(id) ?? { column: 0, columnCount: 1 }
                 const widthPercent = 100 / layout.columnCount
                 return (
                   <div
-                    key={cls.id}
+                    key={id}
                     className={`group absolute overflow-hidden rounded border px-1.5 py-1 leading-tight ${
                       isConflicting ? 'border-red-500 ring-1 ring-red-400' : 'border-gray-300'
                     }`}
@@ -106,7 +127,7 @@ export function GridCanvas({ placedClasses, gridAxis, onRemoveClass }: GridCanva
                   >
                     <button
                       type="button"
-                      onClick={() => onRemoveClass(cls.id)}
+                      onClick={() => onRemoveClass(classId)}
                       title="Remove from this schedule"
                       className="absolute right-0.5 top-0.5 hidden h-4 w-4 items-center justify-center rounded text-gray-400 hover:bg-black/5 hover:text-gray-700 group-hover:flex"
                     >

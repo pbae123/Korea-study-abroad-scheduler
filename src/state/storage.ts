@@ -1,4 +1,4 @@
-import type { AppState } from '../types'
+import type { AppState, Class, MeetingBlock } from '../types'
 
 const STORAGE_KEY = 'ksas:v1'
 
@@ -26,10 +26,25 @@ export function loadState(): AppState {
     if (!isValidState(parsed)) return createInitialState()
     // Grid axis is a code-defined visual setting with no in-app editor;
     // always use the current default so axis changes reach existing users
-    return { ...parsed, gridAxis: DEFAULT_GRID_AXIS }
+    return {
+      ...parsed,
+      classes: migrateClasses(parsed.classes),
+      gridAxis: DEFAULT_GRID_AXIS,
+    }
   } catch {
     return createInitialState()
   }
+}
+
+function migrateClasses(classes: Class[]): Class[] {
+  return classes.map((cls) => {
+    const legacy = cls as Class & { timeBlock?: MeetingBlock }
+    if (Array.isArray(cls.meetingBlocks)) return cls
+    return {
+      ...cls,
+      meetingBlocks: legacy.timeBlock ? [legacy.timeBlock] : [],
+    }
+  })
 }
 
 export function saveState(state: AppState): void {
