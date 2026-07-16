@@ -106,7 +106,10 @@ export function ImportCoursesModal({ isOpen, existingClasses, onClose, onAddClas
           {candidates.length === 0 ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-gray-600">Upload one or more course-list screenshots. You will review every course before it is added to Course Bank.</p>
-              <input ref={fileInput} type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={(event) => setImages(Array.from(event.target.files ?? []))} className="block w-full text-sm text-gray-600" />
+              <input id="course-image-upload" ref={fileInput} type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={(event) => setImages(Array.from(event.target.files ?? []))} className="sr-only" />
+              <label htmlFor="course-image-upload" className="inline-flex cursor-pointer items-center rounded border-2 border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50">
+                Choose images
+              </label>
               {images.length > 0 && <p className="text-xs text-gray-500">{images.length} image{images.length === 1 ? '' : 's'} selected · {images.map((image) => image.name).join(', ')}</p>}
               {error && <p className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-red-50 p-2 font-mono text-xs text-red-700">{error}</p>}
               <div className="flex justify-end gap-2">
